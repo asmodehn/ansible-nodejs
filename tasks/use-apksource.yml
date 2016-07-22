@@ -1,0 +1,70 @@
+---
+# file: tasks/use-source.yml
+#
+# Configure Node.js from source. Useful if no binary distribution alredy exists
+#
+# @see https://github.com/nodesource/distributions
+#
+# Adapted from : https://github.com/mhart/alpine-node/blob/master/Dockerfile
+
+- name: install tools for compiling nodejs source
+  apk:
+    name:
+    - curl
+    - make
+    - gcc
+    - g++
+    - python
+    - linux-headers
+    - paxctl
+    - libgcc
+    - libstdc++
+    - gnupg
+    update_cache: yes
+  when: nodejs_compile
+
+- name: download node from source
+  get_url:
+    url: "https://nodejs.org/dist/{{ nodejs_version }}/node-{{ nodejs_version }}.tar.gz"
+    dest: "node-{{ nodejs_version }}.tar.gz"
+
+- name: download node signature
+  get_url:
+    url: "https://nodejs.org/dist/{{ nodejs_version }}/SHASUMS256.txt.asc"
+    dest: SHASUMS256.txt.asc
+
+- name: verifying node package
+  shell: "gpg --verify SHASUMS256.txt.asc && grep node-{{ nodejs_version }}.tar.gz SHASUMS256.txt.asc | sha256sum -c -"
+
+- name: unpacking
+  unarchive:
+    src: "node-{{ nodejs_version }}.tar.gz"
+    dest: /tmp/
+    copy: no
+
+
+- name: build
+  shell: |
+    export CONFIG_FLAGS="--fully-static --without-npm" && \
+    export GYP_DEFINES="linux_use_gold_flags=0" && \
+    ./configure --prefix=/usr ${CONFIG_FLAGS} && \
+    NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
+    make -j${NPROC} -C out mksnapshot BUILDTYPE=Release && \
+    paxctl -cm out/Release/mksnapshot && \
+    make -j${NPROC} && \
+    make install && \
+    paxctl -cm /usr/bin/node
+  args:
+    chdir: "node-{{ nodejs_version }}"
+
+- stat: path=/usr/bin/npm
+  register: npm
+    
+- name: update npm
+  shell: |
+    npm install -g npm@{{ npm_version }} && \
+    find /usr/lib/node_modules/npm -name test -o -name .bin -type d | xargs rm -rf;
+  when: npm.stat.exists and npm.stat.xusr
+
+#copared to docker file, cleaning shouldnt be done here ( we dont want to remove something preexisting onthe user machine
+

@@ -13,3 +13,14 @@
   set_fact:
     nodejs_version: "{{ nodejs_default_in_yum }}"
   when: nodejs_version is not defined and iojs_version is not defined and ansible_pkg_mgr == "yum"
+
+
+- name: set nodejs_version, if neither version variables are defined
+  set_fact:
+    nodejs_version: "{{ nodejs_default_in_apksource }}"
+  when: nodejs_version is not defined and iojs_version is not defined and ansible_pkg_mgr == "apk"
+
+- name: set npm_version, if neither version variables are defined
+  set_fact:
+    npm_version: "{{ npm_default_in_apksource }}"
+  when: npm_version is not defined and ansible_pkg_mgr == "apk"

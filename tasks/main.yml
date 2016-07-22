@@ -17,3 +17,7 @@
 - name: delegate to YUM system for installation
   include: use-yum.yml
   when: ansible_pkg_mgr == "yum"
+
+- name: delegate to build from source if we need to use apk
+  include: use-apksource.yml
+  when: ansible_pkg_mgr == "apk"
